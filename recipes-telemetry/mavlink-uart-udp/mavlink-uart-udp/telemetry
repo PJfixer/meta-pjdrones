@@ -40,11 +40,26 @@
 
 # PATH should only include /usr/* if it runs after the mountnfs.sh script
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
+CONFIG=/etc/connection.conf
+IFS="="
+while read -r name value
+do
+
+if [ "$name" = "IP_ADDRESS" ]; then
+    ipaddr=$value
+fi
+
+if [ "$name" = "TELEMETRY_PORT" ]; then
+    telem_port=$value
+fi
+
+done < ${CONFIG}
+echo  $ipaddr $telem_port
 
 DESC="telemetry"
 NAME="udpuart-bridge"
 DAEMON=/usr/sbin/$NAME
-DAEMON_ARGS="-u /dev/ttyS1"
+DAEMON_ARGS="-u /dev/ttyS1 -d $ipaddr -p $telem_port"
 PIDFILE=/var/run/$NAME.pid
 
 . /etc/init.d/functions || exit 1

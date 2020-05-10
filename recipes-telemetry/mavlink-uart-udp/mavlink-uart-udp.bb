@@ -11,6 +11,7 @@ SRC_URI = "file://telemetry \
 	   file://udp.h \
 	   file://serial.c \
 	   file://serial.h \
+	   file://connection.conf \
 	   file://COPYRIGHT \
 	   "
 TARGET_LDFLAGS_append = " -pthread "
@@ -38,6 +39,9 @@ do_install () {
 
 	install -d ${D}${sbindir}
 	install -m 0755 ${WORKDIR}/udpuart-bridge ${D}${sbindir}/
+
+	install -d ${D}${sysconfdir}
+	install -m 0755 ${WORKDIR}/connection.conf ${D}${sysconfdir}/
 }
 
 RDEPENDS_${PN} = "initscripts"
