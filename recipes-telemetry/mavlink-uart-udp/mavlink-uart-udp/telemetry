@@ -1,6 +1,6 @@
 #! /bin/sh
 ### BEGIN INIT INFO
-# Provides:          skeleton
+# Provides:          telemetry
 # Required-Start:    $local_fs
 # Should-Start:
 # Required-Stop:     $local_fs
@@ -41,10 +41,10 @@
 # PATH should only include /usr/* if it runs after the mountnfs.sh script
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 
-DESC="skeleton"
-NAME="skeleton-test"
+DESC="telemetry"
+NAME="udpuart-bridge"
 DAEMON=/usr/sbin/$NAME
-DAEMON_ARGS=""
+DAEMON_ARGS="-u /dev/ttyS1"
 PIDFILE=/var/run/$NAME.pid
 
 . /etc/init.d/functions || exit 1
