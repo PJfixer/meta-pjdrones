@@ -1,6 +1,6 @@
 SUMMARY = "The canonical example of init scripts"
 SECTION = "base"
-LICENSE = "GPLv2"
+LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${WORKDIR}/COPYRIGHT;md5=5111f52a6925efff79682aec8b3b32da"
 FILESEXTRAPATHS_prepend := "${THISDIR}:"
 SRC_URI = "file://telemetry \

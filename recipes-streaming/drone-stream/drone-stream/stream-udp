@@ -1,6 +1,6 @@
 #! /bin/sh
 ### BEGIN INIT INFO
-# Provides:          telemetry
+# Provides:          stream-udp
 # Required-Start:    $local_fs
 # Should-Start:
 # Required-Stop:     $local_fs
@@ -50,19 +50,20 @@ if [ "$name" = "IP_ADDRESS" ]; then
     ipaddr=$value
 fi
 
-if [ "$name" = "TELEMETRY_PORT" ]; then
-    telem_port=$value
+if [ "$name" = "STREAMING_PORT" ]; then
+    stream_port=$value
 	
 fi
 
 done < ${CONFIG}
 IFS=$IFSori
-echo  $ipaddr $telem_port
+echo  $ipaddr $stream_port
 
-DESC="telemetry"
-NAME="udpuart-bridge"
+DESC="stream-udp"
+NAME="pj-stream"
 DAEMON=/usr/sbin/$NAME
-DAEMON_ARGS="-u /dev/ttyS1 -d $ipaddr -p $telem_port"
+DAEMON_ARGS="-d $ipaddr -p $stream_port
+"
 PIDFILE=/var/run/$NAME.pid
 
 . /etc/init.d/functions || exit 1
