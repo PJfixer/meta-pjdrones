@@ -30,27 +30,22 @@ void set_baudrate(int fd,unsigned int speed)
 		break;
 	}
 	
-	config.c_cflag |= (CLOCAL | CREAD); // enable receiver & put in local mode
-	config.c_cflag &= ~CSIZE; /* Mask the character size bits */
-	config.c_cflag |= CS8;    /* Select 8 data bits */
-	//set 8N1 no parity
-	config.c_cflag &= ~PARENB;
-	config.c_cflag &= ~CSTOPB;
-	config.c_cflag &= ~CSIZE;
-	config.c_cflag |= CS8;
+	config.c_cflag &= ~PARENB;   /* Disables the Parity Enable bit(PARENB),So No Parity   */
+	config.c_cflag &= ~CSTOPB;   /* CSTOPB = 2 Stop bits,here it is cleared so 1 Stop bit */
+	config.c_cflag &= ~CSIZE;	 /* Clears the mask for setting the data size             */
+	config.c_cflag |=  CS8;      /* Set the data bits = 8                                 */
+
+	config.c_cflag &= ~CRTSCTS;       /* No Hardware flow Control                         */
+	config.c_cflag |= CREAD | CLOCAL; /* Enable receiver,Ignore Modem Control lines       */ 
 	
-	//disable flow control
-	//config.c_cflag &= ~CNEW_RTSCTS; //if supported
-	config.c_lflag |= (ICANON ); //input is line-oriented. Input characters are put into a buffer  
-	//config.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); // raw
-	//until a CR (carriage return) or LF (line feed) character is received. 
-	config.c_iflag &= ~(IXON | IXOFF | IXANY ); // disable software flow control
-	config.c_iflag |= IGNCR ; 
-	config.c_oflag |= (OPOST);
+	
+	config.c_iflag &= ~(IXON | IXOFF | IXANY);          /* Disable XON/XOFF flow control both i/p and o/p */
+	config.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);  /* Non Cannonical mode                            */
+
+	config.c_oflag &= ~OPOST;/*No Output Processing*/
 
 	tcsetattr(fd, TCSANOW, &config); // write new parameter NOW! to serial port
-	sleep(2);
-	tcsetattr(fd, TCSAFLUSH, &config);
+	
 }
 
 int open_port(char * port)

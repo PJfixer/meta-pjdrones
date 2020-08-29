@@ -1,77 +1,64 @@
 /*
  * main.c
  * 
- * Copyright 2019 Pierre JEANNE <pierre.jeanne96@gmail.com>
- * 
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301, USA.
- * 
- * 
- */
+Copyright <2020> <Pierre JEANNE>
+MIT liscence
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+*/
 
 
 #include <stdio.h>
 #include <unistd.h>
 #include <getopt.h>
-#include <pthread.h>
 #include <sys/types.h> /*  linux sys types */
 #include <sys/time.h> /* linux sys time struct*/
 #include <sys/select.h> /* select fd */
 #include <string.h>
+#include <poll.h>
+#include <sys/ioctl.h>
 
 #include "serial.h"
 #include "udp.h"
-#include "bridge.h"
-extern int sockfd; 
-extern struct sockaddr_in servaddr;
+
 int port;
-extern volatile bool SerialProcess;
-extern volatile bool UdpProcess;
 
-pthread_t ThreadSer ;
-pthread_t ThreadUDP ;
-
-extern pthread_mutex_t conditionSer_locker ;
-extern pthread_cond_t conditionSer ;
-
-extern pthread_mutex_t conditionUdp_locker ;
-extern pthread_cond_t conditionUdp ;
-
-extern pthread_mutex_t conditionSer_done_locker;
-extern pthread_cond_t conditionSer_done; 
-
-extern pthread_mutex_t conditionUdp_done_locker;
-extern pthread_cond_t conditionUdp_done;
 
 
 int main(int argc, char *argv[])
 {
-	daemon(0, 0);
+	daemon(0,0);
 	char *uart_dev = "/dev/ttyUSB0" ;
 	int uart_baudrate =115200 ;
 	char *destination_address = "127.0.0.1" ;
-	int destination_port = 8000;
+	int destination_port =5000 ;
 
 	extern char *optarg;
 	extern int optind;
 	int c;
+
+	int port;
+	ssize_t ser_length; // serial buffer lenght
+    	char ser_buff[512]; // serial buffer
+
+
+	ssize_t sock_length; // len_socket_buffer
+    	char sock_buff[512]; // socket buffer
+	extern struct sockaddr_in servaddr; // server struct configured by "open_connection"
+	int fromlen = sizeof(servaddr); //used with recvfrom
+	int socket;
+
+	
+	
 	
 	printf("my process ID is : %d \n\n \n",getpid());
-	fd_set input;
-	int max_fd;
-	struct timeval timeout;
+	
+	
 
 	while ( (c=getopt(argc,argv,"u:b:d:p:")) != EOF )
 		switch (c) {
@@ -86,8 +73,7 @@ int main(int argc, char *argv[])
 			break;
 		case 'p':
 			destination_port = atoi(optarg);
-			break;
-		
+			break;		
 		case '?':
 			
 			exit(1);
@@ -95,88 +81,97 @@ int main(int argc, char *argv[])
 
 	printf("uart = %s \n",uart_dev);
 	printf("uart baudrate = %d \n",uart_baudrate);
-	printf("destination address = %s \n",destination_address);
-	printf("destination port = %d \n\n\n",destination_port);
+	printf("destination_address = %s \n",destination_address);
+	printf("destination_port = %d \n",destination_port);
+
+	struct pollfd fds[2]; // create 2 file descriptor set
+	int timeout_msecs = 5000;
+	int ret;
 
 
-	port = open_port(uart_dev); // ask open serial TODO : specify SERIAL port  & UDP adress + port via arguments
-	if(port != -1)
+	port = open_port(uart_dev); // open serial port
+	if(port != -1) // if we succesfully open serial port 
 	{
-		 set_baudrate(port,uart_baudrate); // set baudrate 
-		if(!open_connection(destination_address,destination_port))
+		set_baudrate(port,uart_baudrate); // set uart baudarte
+		socket = open_connection(destination_address,destination_port); // open socket at specified ip and port 
+		if(socket != -1)
 		{
-			pthread_create(&ThreadSer, NULL,SerialTask,NULL); //create a thread to get serial data and push it over UDP
-			pthread_create(&ThreadUDP, NULL,UdpTask,NULL); // //create a thread to get UDP data and push it over serial
-			
-			pthread_mutex_lock(&conditionSer_done_locker);
-			pthread_mutex_lock(&conditionUdp_done_locker);
+			fds[0].fd = port; // configure fdset 0 on uart 
+			fds[0].events = POLLIN ; // we are interested by POLLIN events type
 
-			while(1) // ùain 
+			fds[1].fd = socket; // configure fdset 1 on udp socket
+			fds[1].events = POLLIN ; // we are interested by POLLIN events type
+
+
+			while(1) // main process loop
 			{
-				int n;
-				FD_ZERO(&input);
-				FD_SET(port, &input);
-				FD_SET(sockfd, &input);
-				max_fd = (sockfd > port ? sockfd : port) + 1;
-				/*printf("port %d",port);
-				printf("socket %d",sockfd);
-				printf("max fd %d",max_fd);*/
-				timeout.tv_sec  = 10;
-				timeout.tv_usec = 0;
-				/* Do the select */
-				n = select(max_fd,&input,  NULL, NULL,&timeout) ;
+				ret = poll(fds,2, timeout_msecs); // check the two fds for events (uart & socket)
+				if (ret > 0) { // if there is an event
 
-				/* See if there was an error */
-				if (n == -1)
-				{
-				  perror("select failed");
-				}
-				else if (n)
-				{
-				   /* We have input */
-				  if (FD_ISSET(port, &input))
+					if (fds[1].revents & POLLIN) // if the event is an input on socket fds[1]
 					{
-					 
-						FD_CLR(port, &input); // clear the bit for serial port file descriptor
-						SerialProcess = true;
-						//printf("DATA on SERIAL \n"); 
-						pthread_mutex_lock(&conditionSer_locker); // notify SerialThread to wake up and process data
-						pthread_cond_signal(&conditionSer);
-						pthread_mutex_unlock(&conditionSer_locker);
-					 
-						pthread_cond_wait(&conditionSer_done,&conditionSer_done_locker);//wait notification form serial thread work is done	
+						sock_length = recvfrom(socket,&sock_buff,sizeof(sock_buff),MSG_WAITALL, (struct sockaddr *) &servaddr, &fromlen); //receive from socket and store tosock_buff
+
+						write(port,sock_buff,sock_length); // send  back sock_buff content through uart
+
+						
+
+						
+						
+					}
+					
+
+				
+					if (fds[0].revents & POLLIN) // if the event is an input on uart fds[0]
+					{
+						int available_bytes = 0;
+
+						ioctl(port, FIONREAD, &available_bytes);
+
+						if(available_bytes >=140) // wait get 140 bytes before send
+						{
+
+
+							ser_length = read(port, ser_buff, sizeof(ser_buff) ); //read the uart and store to serbuff
+
+							sendto(socket,ser_buff,ser_length,MSG_CONFIRM, (const struct sockaddr *) &servaddr,sizeof(servaddr)); //send the serial buffer via udp socket
+
+						}
+						else
+						{
+							fds[0].revents = 0;
+							usleep(10000);
+							//printf("%d bytes available on uart \n ",available_bytes);
 							
+						}
+
+					
 						
 					}
-					if (FD_ISSET(sockfd, &input))
-					{
-						FD_CLR(sockfd, &input);  // clear the bit for udp  socket  file descriptor
-						//printf("DATA on UDP \n"); 
-						pthread_mutex_lock(&conditionUdp_locker); // notify UdpThread to wake up and process data
-						pthread_cond_signal(&conditionUdp);
-						pthread_mutex_unlock(&conditionUdp_locker);
-
-						pthread_cond_wait(&conditionUdp_done,&conditionUdp_done_locker); //wait notification from udp thread work is done
-						
-					}
-				
-				
-
-				
+					
+					
 				}
-				else
+				else  // if nothing append before "timeout_msecs" milliseconds (5000)
 				{
-				  fprintf(stdout,"TIMEOUT \n"); //we didn't get  any  data for 10 seconds 
-				   
-				  
+					printf("timeout \n");
+					
 				}
-				
 			}
-			pthread_mutex_unlock(&conditionSer_done_locker);
-			pthread_mutex_unlock(&conditionUdp_done_locker);
+
 		}
+		else
+		{
+			perror("error opening udp socket");
+		 	exit(1);
+		}	
+		
+		
 	}
-	
+	else
+	{
+		 perror("error opening serial port exiting");
+		 exit(1);
+	}
 	
 	
 	

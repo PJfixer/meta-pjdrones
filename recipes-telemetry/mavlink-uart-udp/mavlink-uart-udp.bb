@@ -5,8 +5,6 @@ LIC_FILES_CHKSUM = "file://${WORKDIR}/COPYRIGHT;md5=5111f52a6925efff79682aec8b3b
 FILESEXTRAPATHS_prepend := "${THISDIR}:"
 SRC_URI = "file://telemetry \
 	   file://main.c \
-           file://bridge.c \
-	   file://bridge.h \
            file://udp.c \
 	   file://udp.h \
 	   file://serial.c \
@@ -16,7 +14,7 @@ SRC_URI = "file://telemetry \
 	   "
 TARGET_LDFLAGS_append = " -pthread "
 do_compile () {
-	${CC} ${CFLAGS} ${LDFLAGS} ${WORKDIR}/main.c ${WORKDIR}/bridge.c ${WORKDIR}/udp.c ${WORKDIR}/serial.c  -o ${WORKDIR}/udpuart-bridge
+	${CC} ${CFLAGS} ${LDFLAGS} ${WORKDIR}/main.c  ${WORKDIR}/udp.c ${WORKDIR}/serial.c  -o ${WORKDIR}/udpuart-bridge
 }
 
 INITSCRIPT_NAME = "telemetry"

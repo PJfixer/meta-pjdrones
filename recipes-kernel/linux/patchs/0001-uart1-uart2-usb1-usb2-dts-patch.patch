@@ -1,8 +1,8 @@
 diff --git a/sun8i-h3-nanopi-neo.dts b/patched/sun8i-h3-nanopi-neo.dts
-index 9f33f6f..9cccd69 100644
+index 9f33f6f..82a2066 100644
 --- a/arch/arm/boot/dts/sun8i-h3-nanopi-neo.dts
 +++ b/arch/arm/boot/dts/sun8i-h3-nanopi-neo.dts
-@@ -70,3 +70,25 @@
+@@ -70,3 +70,41 @@
  &usbphy {
  	usb0_id_det-gpios = <&pio 6 12 GPIO_ACTIVE_HIGH>; /* PG12 */
  };
@@ -27,4 +27,20 @@ index 9f33f6f..9cccd69 100644
 +			status = "okay";
 +			pinctrl-names = "default";
 +            pinctrl-0 = <0x00000025>;
++};
++
++&ehci1 {
++	status = "okay";
++};
++
++&ehci2 {
++	status = "okay";
++};
++
++&ohci1 {
++	status = "okay";
++};
++
++&ohci2 {
++	status = "okay";
 +};
